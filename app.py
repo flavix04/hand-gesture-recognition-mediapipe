@@ -15,31 +15,13 @@ from utils import CvFpsCalc
 from model import KeyPointClassifier
 from model import PointHistoryClassifier
 
-
-def get_args():
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument("--device", type=int, default=0)
-    parser.add_argument("--width", help='cap width', type=int, default=960)
-    parser.add_argument("--height", help='cap height', type=int, default=540)
-
-    parser.add_argument('--use_static_image_mode', action='store_true')
-    parser.add_argument("--min_detection_confidence",
-                        help='min_detection_confidence',
-                        type=float,
-                        default=0.7)
-    parser.add_argument("--min_tracking_confidence",
-                        help='min_tracking_confidence',
-                        type=int,
-                        default=0.5)
-
-    args = parser.parse_args()
-
-    return args
+import math
 
 
 def main():
-    # Argument parsing #################################################################
+    # ################ #
+    # Argument parsing #
+    # ################ # ############################################################################################
     args = get_args()
 
     cap_device = args.device
@@ -52,12 +34,16 @@ def main():
 
     use_brect = True
 
-    # Camera preparation ###############################################################
+    # ################## #
+    # Camera preparation #
+    # ################## # ##########################################################################################
     cap = cv.VideoCapture(cap_device)
     cap.set(cv.CAP_PROP_FRAME_WIDTH, cap_width)
     cap.set(cv.CAP_PROP_FRAME_HEIGHT, cap_height)
 
-    # Model load #############################################################
+    # ########## #
+    # Model load #
+    # ########## # ##################################################################################################
     mp_hands = mp.solutions.hands
     hands = mp_hands.Hands(
         static_image_mode=use_static_image_mode,
@@ -65,12 +51,17 @@ def main():
         min_detection_confidence=min_detection_confidence,
         min_tracking_confidence=min_tracking_confidence,
     )
-
+    
+    # ############################# #
+    # Initialiyation of classifiers #
+    # ############################# # ###############################################################################
     keypoint_classifier = KeyPointClassifier()
 
     point_history_classifier = PointHistoryClassifier()
 
-    # Read labels ###########################################################
+    # ########### #
+    # Read labels #
+    # ########### # #################################################################################################
     with open('model/keypoint_classifier/keypoint_classifier_label.csv',
               encoding='utf-8-sig') as f:
         keypoint_classifier_labels = csv.reader(f)
@@ -85,19 +76,30 @@ def main():
             row[0] for row in point_history_classifier_labels
         ]
 
-    # FPS Measurement ########################################################
+    # ############### #
+    # FPS Measurement #
+    # ############### # ############################################################################################
     cvFpsCalc = CvFpsCalc(buffer_len=10)
 
-    # Coordinate history #################################################################
+    # ################## #
+    # Coordinate history #
+    # ################## # #########################################################################################
     history_length = 16
     point_history = deque(maxlen=history_length)
 
-    # Finger gesture history ################################################
+    # ###################### #
+    # Finger gesture history #
+    # ###################### # #####################################################################################
     finger_gesture_history = deque(maxlen=history_length)
 
-    #  ########################################################################
+    # #################### #
+    # Setting default mode #
+    # #################### # ########################################################################################
     mode = 0
 
+    # ######################## #
+    # Starting the Camera-Loop #
+    # ######################## # ####################################################################################
     while True:
         fps = cvFpsCalc.get()
 
@@ -129,6 +131,34 @@ def main():
                 brect = calc_bounding_rect(debug_image, hand_landmarks)
                 # Landmark calculation
                 landmark_list = calc_landmark_list(debug_image, hand_landmarks)
+                
+                ############################################################################################       
+
+
+
+                #print ( 'Thumb x is', results.multi_hand_landmarks[8][0])
+                #print ( 'Thumb y is', landmark_list[8][1])
+
+
+               # index_top_8 = (landmark_list[8][0], landmark_list[8][1])
+               # index_midTop_7 = (landmark_list[7][0], landmark_list[7][1])
+               # index_midBot_6 = (landmark_list[6][0], landmark_list[6][1])
+               # index_bottom_5  = (landmark_list[5][0], landmark_list[5][1])
+                #tip_thumb_4  = (landmark_list[4][0], landmark_list[4][1])
+
+                # Color in BGR
+                color = (50, 235, 110)
+
+                # Line thickness in px
+                thickness = 4
+
+                #debug_image = cv.line(debug_image, index_top_8, index_midTop_7, color, thickness)
+               # debug_image = cv.line(debug_image, index_midTop_7, index_midBot_6, color, thickness)
+               # debug_image = cv.line(debug_image, index_midBot_6 , index_bottom_5 , color, thickness)
+
+
+
+###################################################################################################
 
                 # Conversion to relative coordinates / normalized coordinates
                 pre_processed_landmark_list = pre_process_landmark(
@@ -181,6 +211,30 @@ def main():
     cv.destroyAllWindows()
 
 
+#####################################################################################################################################################################################
+#####################################################################################################################################################################################
+
+def get_args():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--device", type=int, default=0)
+    parser.add_argument("--width", help='cap width', type=int, default=960)
+    parser.add_argument("--height", help='cap height', type=int, default=540)
+
+    parser.add_argument('--use_static_image_mode', action='store_true')
+    parser.add_argument("--min_detection_confidence",
+                        help='min_detection_confidence',
+                        type=float,
+                        default=0.7)
+    parser.add_argument("--min_tracking_confidence",
+                        help='min_tracking_confidence',
+                        type=int,
+                        default=0.5)
+
+    args = parser.parse_args()
+
+    return args
+
 def select_mode(key, mode):
     number = -1
     if 48 <= key <= 57:  # 0 ~ 9
@@ -221,7 +275,7 @@ def calc_landmark_list(image, landmarks):
     for _, landmark in enumerate(landmarks.landmark):
         landmark_x = min(int(landmark.x * image_width), image_width - 1)
         landmark_y = min(int(landmark.y * image_height), image_height - 1)
-        # landmark_z = landmark.z
+        #landmark_z = landmark.z
 
         landmark_point.append([landmark_x, landmark_y])
 
@@ -487,9 +541,27 @@ def draw_bounding_rect(use_brect, image, brect):
         # Outer rectangle
         cv.rectangle(image, (brect[0], brect[1]), (brect[2], brect[3]),
                      (0, 0, 0), 1)
+        #draw_basic_outline(image[int(brect[1]):int(brect[3]), int(brect[0]):int(brect[2])])
 
     return image
 
+def draw_basic_outline(image):
+    gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY) 
+  
+    # Find Canny edges 
+    edged = cv.Canny(gray, 30, 200) 
+        
+    # Finding Contours 
+    # Use a copy of the image e.g. edged.copy() 
+    # since findContours alters the image 
+    contours, hierarchy = cv.findContours(edged, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE) 
+        
+    print("Number of Contours found = " + str(len(contours))) 
+    
+    # Draw all contours 
+    # -1 signifies drawing all contours 
+    cv.drawContours(image, contours, -1, (0, 255, 0), 3) 
+        
 
 def draw_info_text(image, brect, handedness, hand_sign_text,
                    finger_gesture_text):
